@@ -1,10 +1,10 @@
-
 import React, { useState } from "react";
 import AudioRecorder from "@/components/AudioRecorder";
 import NoteCard from "@/components/NoteCard";
 import Header from "@/components/Header";
 import { Button } from "@/components/ui/button";
 import { Plus } from "lucide-react";
+import TextHighlighter from "@/components/TextHighlighter"; // Import TextHighlighter
 
 const Index = () => {
   const [notes, setNotes] = useState<Array<{

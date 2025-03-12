@@ -1,4 +1,4 @@
-import React, { useState, useRef } from "react";
+import React, { useState, useRef, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Mic, Square, Loader2 } from "lucide-react";
 import { toast } from "@/components/ui/use-toast";
@@ -13,6 +13,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Textarea } from "@/components/ui/textarea";
+import { getHighlightedText } from '../utils/geminiApi';
 
 nlp.extend(numbers);
 
@@ -174,18 +175,29 @@ const AudioRecorder: React.FC<AudioRecorderProps> = ({ onTranscriptionComplete }
     }
   };
 
-  const highlightText = (text: string, highlights: string[], actions: string[]) => {
-    let parts = text.split(new RegExp(`(${[...highlights, ...actions].join('|')})`, 'gi'));
+  const highlightText = async (text: string) => {
+    const highlightedData = await getHighlightedText(text);
+    if (!highlightedData) return text;
+  
+    const { highlights, actions } = highlightedData;
+    const combinedKeywords = [...highlights, ...actions];
+    const regex = new RegExp(`\\b(${combinedKeywords.join('|')})\\b`, 'gi');
+  
+    let parts = text.split(regex);
     return parts.map((part, index) => {
-      if (highlights.some(h => part.toLowerCase().includes(h.toLowerCase()))) {
+      const lowerPart = part.toLowerCase();
+      const highlight = highlights.find(h => lowerPart === h.toLowerCase());
+      const action = actions.find(a => lowerPart === a.toLowerCase());
+  
+      if (highlight) {
         return (
-          <span key={index} className="bg-yellow-200 px-1 rounded">
+          <span key={index} className="bg-yellow-200 px-1 rounded" title={`Highlight: ${highlight}`}>
             {part}
           </span>
         );
-      } else if (actions.some(a => part.toLowerCase().includes(a.toLowerCase()))) {
+      } else if (action) {
         return (
-          <span key={index} className="bg-green-200 px-1 rounded">
+          <span key={index} className="bg-blue-200 px-1 rounded" title={`Action: ${action}`}>
             {part}
           </span>
         );
@@ -193,6 +205,22 @@ const AudioRecorder: React.FC<AudioRecorderProps> = ({ onTranscriptionComplete }
       return part;
     });
   };
+  
+  const TextHighlighter = ({ text }) => {
+    const [highlightedText, setHighlightedText] = useState(text);
+  
+    useEffect(() => {
+      const fetchHighlightedText = async () => {
+        const result = await highlightText(text);
+        setHighlightedText(result);
+      };
+  
+      fetchHighlightedText();
+    }, [text]);
+  
+    return <div>{highlightedText}</div>;
+  };
+  
 
   const startRecording = async () => {
     try {
@@ -338,7 +366,7 @@ const AudioRecorder: React.FC<AudioRecorderProps> = ({ onTranscriptionComplete }
         <div className="w-full">
           <NoteCard
             title={`Note - ${category}`}
-            content={highlightText(transcription, highlights, actionItems)}
+            content={<TextHighlighter text={transcription} />}
             timestamp={new Date().toLocaleString()}
             category={category}
             tags={tags}
